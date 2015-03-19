@@ -10,6 +10,12 @@ window.LGI.Carusel = React.createClass({
     attributeChanged: function(name, oldValue, newValue) {
         console.log('Attribute ' + name + ' was changed from ' + oldValue + ' to ' + newValue);
     },
+    clickCheck: function() {
+        var node = this.getDOMNode();
+        var node2 = this.getDOMNode2();
+        var eq = node === node2;
+        debugger;
+    },
     render: function() {
         var rows = [];
 
@@ -21,7 +27,7 @@ window.LGI.Carusel = React.createClass({
             rows.push(<li key={item.text}>{item.text}</li>);
         });
 
-        return <div>&lt;my-reactive-element&gt;<ul style={this.state}>{rows}</ul>&lt;/my-reactive-element&gt;</div>;
+        return <div onClick={this.clickCheck}>&lt;my-reactive-element&gt;<ul style={this.state}>{rows}</ul>&lt;/my-reactive-element&gt;</div>;
     },
     changeColor: function(color) {
         this.state.color = color;

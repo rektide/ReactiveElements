@@ -1,19 +1,36 @@
 React = typeof React === 'object' ? React : require('react');
 
+// look for children with .reactiveElement
+// mutation observers to watch children change and update
+// consolidated draw routines
+// react-magic to convert children into vdom
+
 (function (w) {
     if (document.registerElement || document.register) {
         var registrationFunction = (document.registerElement || document.register).bind(document);
     }
 
     var registerReact = function (elementName, reactClass) {
+        function gatherProps(el) {
+            utils.getAllProperties(el, el.attributes);
+        }
+        function gatherChildren(el) {
+	    var src = el.children;
+            var result = new Array(src.length);
+            for (var i = 0; i < el.children.length; ++i) {
+                var child = children[i];
+                result[i] = child.reactiveElement || child;
+            }
+            return result;
+        }
+        function render(el) {
+        }
+
         var elementPrototype = Object.create(HTMLElement.prototype);
 
         elementPrototype.createdCallback = function () {
-            this._content = utils.getContentNodes(this);
-            var reactElement = React.createElement(reactClass, utils.getAllProperties(this, this.attributes));
-
-            //Since React v0.12 API was changed, so need a check for current API
-            this.reactiveElement = React.render(reactElement, this);
+            
+            utils.renderElement(reactClass, el);
 
             utils.extend(this, this.reactiveElement);
 
@@ -25,12 +42,20 @@ React = typeof React === 'object' ? React : require('react');
         };
 
         elementPrototype.attributeChangedCallback = function (name, oldValue, newValue) {
-            this.reactiveElement.props = utils.getAllProperties(this, this.attributes);
+            var props = utils.getAllProperties(this, this.attributes);
             this.reactiveElement.forceUpdate();
             if (this.reactiveElement.attributeChanged !== undefined) {
                 this.reactiveElement.attributeChanged.bind(this)(name, oldValue, newValue);
             }
         }
+
+        elementPrototype.attachedCallback = function() {
+            //this.createdCallback();
+        }
+
+	elementPrototype.detachedCallback = function() {
+	    React.unmountComponentAtNode(this);
+	}
 
         registrationFunction(elementName, {
             prototype: elementPrototype
@@ -76,20 +101,18 @@ React = typeof React === 'object' ? React : require('react');
                 });
         },
         parseAttributeValue: function (value) {
-            var pointerRegexp = /^{.*?}$/i,
-                jsonRegexp = /^{{2}.*}{2}$/,
-                jsonArrayRegexp = /^{\[.*\]}$/;
-
-            var pointerMatches = value.match(pointerRegexp),
+            var jsonRegexp = /^{{2}.*}{2}$/,
+                jsonArrayRegexp = /^{\[.*\]}$/,
                 jsonMatches = value.match(jsonRegexp) || value.match(jsonArrayRegexp);
-
             if (jsonMatches) {
-                value = JSON.parse(jsonMatches[0].replace(/^{|}$/g, '').replace(/'/g, '"'));
-            } else if (pointerMatches) {
-                value = eval(pointerMatches[0].replace(/[{}]/g, ''));
+                return JSON.parse(jsonMatches[0].replace(/^{|}$/g, '').replace(/'/g, '"'));
             }
 
-            return value;
+            var pointerRegexp = /^{.*?}$/i,
+                pointerMatches = value.match(pointerRegexp),
+            if (pointerMatches) {
+                return eval(pointerMatches[0].replace(/[{}]/g, ''));
+            }
         },
         getterSetter: function (variableParent, variableName, getterFunction, setterFunction) {
             if (Object.defineProperty) {
@@ -103,8 +126,19 @@ React = typeof React === 'object' ? React : require('react');
                 variableParent.__defineSetter__(variableName, setterFunction);
             }
 
-            variableParent["get" + variableName] = getterFunction;
-            variableParent["set" + variableName] = setterFunction;
+            //variableParent["get" + variableName] = getterFunction;
+            //variableParent["set" + variableName] = setterFunction;
+        },
+        renderElement: function(reactClass, el) {
+            el._content = utils.getContentNodes(this);
+            var reactElement = React.createElement(reactClass, utils.getAllProperties(el, el.attributes));
+
+            //Since React v0.12 API was changed, so need a check for current API
+            el.reactiveElement = React.render(reactElement, el);
+            el.reactiveElement.getDOMNode = utils.firstChildElement.bind(el);
+        },
+        firstChildElement: function () {
+            return this.firstChildElement;
         }
     };
 
